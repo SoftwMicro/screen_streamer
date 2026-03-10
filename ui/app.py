@@ -6,7 +6,7 @@ import time
 
 from capture.screen import ScreenCapture
 from encoder.frame_encoder import FrameEncoder
-from recorder.video_writer import VideoWriter
+from recorder.video_writer import FFmpegWriter
 
 class CaptureApp:
     def __init__(self, root):
@@ -30,8 +30,8 @@ class CaptureApp:
 
     def start_recording(self):
         if not self.is_recording:
-            filepath = filedialog.asksaveasfilename(defaultextension=".avi",
-                                                    filetypes=[("AVI files", "*.avi")])
+            filepath = filedialog.asksaveasfilename(defaultextension=".mp4",
+                                                    filetypes=[("MP4 files", "*.mp4")])
             if not filepath:
                 return
 
@@ -40,7 +40,7 @@ class CaptureApp:
 
             first_frame = next(self.captura.stream_generator())
             h, w, _ = first_frame.shape
-            self.writer = VideoWriter(filename=filepath, fps=self.target_fps, frame_size=(w, h))
+            self.writer = FFmpegWriter(filename=filepath, fps=self.target_fps, frame_size=(w, h))
 
             self.is_recording = True
             self.last_time = time.time()
@@ -62,8 +62,8 @@ class CaptureApp:
             decoded = cv2.imdecode(np.frombuffer(encoded_frame, np.uint8), cv2.IMREAD_COLOR)
             self.writer.write(decoded)
 
-        # agenda próxima chamada sem travar a UI
-        self.root.after(1, self.record_loop)
+        # agenda próxima chamada respeitando o intervalo de frame
+        self.root.after(int(self.frame_interval * 1000), self.record_loop)
 
     def stop_recording(self):
         if self.is_recording:

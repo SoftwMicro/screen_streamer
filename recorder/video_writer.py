@@ -1,15 +1,31 @@
-import cv2
+import subprocess
 
-class VideoWriter:
-    def __init__(self, filename="output.avi", fps=30, frame_size=(800, 600)):
-        fourcc = cv2.VideoWriter_fourcc(*'MJPG')  # MJPG funciona bem no Windows
-        self.writer = cv2.VideoWriter(filename, fourcc, fps, frame_size)
+class FFmpegWriter:
+    def __init__(self, filename="output.mp4", fps=30, frame_size=(800, 600)):
+        self.filename = filename
+        self.fps = fps
+        self.frame_size = frame_size
+        # Comando FFmpeg: recebe frames em raw (BGR) via stdin
+        self.process = subprocess.Popen([
+            "ffmpeg",
+            "-y",
+            "-f", "rawvideo",
+            "-pix_fmt", "bgr24",
+            "-s", f"{frame_size[0]}x{frame_size[1]}",
+            "-r", str(fps),
+            "-i", "-",
+            "-vsync", "0",  # Garante FPS constante
+            "-c:v", "libx264",
+            "-preset", "fast",
+            "-pix_fmt", "yuv420p",
+            filename
+        ], stdin=subprocess.PIPE)
 
-        if not self.writer.isOpened():
-            raise RuntimeError("VideoWriter não inicializou. Verifique codec e caminho.")
 
     def write(self, frame):
-        self.writer.write(frame)
+        # envia frame bruto para o FFmpeg
+        self.process.stdin.write(frame.tobytes())
 
     def release(self):
-        self.writer.release()
+        self.process.stdin.close()
+        self.process.wait()
