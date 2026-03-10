@@ -10,4 +10,4 @@ class VideoWriter:
         self.writer.write(frame)
 
     def release(self):
-        self.writer.release()
+        self.writer.release()    
