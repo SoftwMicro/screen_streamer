@@ -1,11 +1,10 @@
 
 import tkinter as tk
 import os
-import time
 import threading
 import subprocess
 from datetime import datetime
-
+import pyautogui
 
 class CaptureApp:
     def __init__(self, root):
@@ -32,9 +31,9 @@ class CaptureApp:
 
     def run_ffmpeg_capture(self):
         FPS = 30
-        LARGURA = 1280
-        ALTURA = 720
-        DURACAO = 0  # 0 = até clicar em parar
+        # Captura a resolução total da tela
+        screen_size = pyautogui.size()
+        largura, altura = screen_size.width, screen_size.height
         usar_nvenc = False  # Altere para True se quiser testar NVENC
 
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -47,7 +46,7 @@ class CaptureApp:
             '-y',
             '-f', 'gdigrab',
             '-framerate', str(FPS),
-            '-video_size', f'{LARGURA}x{ALTURA}',
+            '-video_size', f'{largura}x{altura}',
             '-i', 'desktop',
         ]
         if usar_nvenc:
@@ -60,6 +59,9 @@ class CaptureApp:
         self.ffmpeg_proc = subprocess.Popen(comando, stdin=subprocess.PIPE)
         self.ffmpeg_proc.wait()
         print(f'Vídeo salvo em: {saida}')
+        # Exibe comando para testar o vídeo salvo
+        video_nome = os.path.basename(saida)
+        print(f"Para testar: python test/video_speed_test.py test/{video_nome}")
         self.is_recording = False
         self.root.after(0, lambda: self.start_btn.config(state=tk.NORMAL))
         self.root.after(0, lambda: self.stop_btn.config(state=tk.DISABLED))
