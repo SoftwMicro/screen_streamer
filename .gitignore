@@ -1,43 +1,8 @@
-# Ignorar pasta de testes
-/test/
-# Python
-*.pyc
-__pycache__/
-*.pyo
-*.pyd
+# Ignore everything
+*
 
-# Virtual environments
-venv/
-ENV/
-.env
-
-# Distribution / packaging
-build/
-dist/
-*.egg-info/
-.eggs/
-
-# IDEs
-.vscode/
-.idea/
-
-# Cache / test / coverage
-.pytest_cache/
-.mypy_cache/
-.cache/
-.coverage
-
-# Logs / temp / system
-*.log
-*.tmp
-*.bak
-*.swp
-.DS_Store
-Thumbs.db
-
-# Others
-*.sqlite
-*.db
+# But not these files...
+!openspec/
 
 # Ignore Windows Python launcher
 __launcher__.manifest
