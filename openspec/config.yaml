@@ -1,3 +1,6 @@
+dev_setup:
+	- "Ative o ambiente virtual: & ./venv/Scripts/Activate.ps1"
+	- "Execute scripts Python usando: ./venv/Scripts/python.exe <script.py>"
 schema: spec-driven
 
 
