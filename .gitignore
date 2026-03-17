@@ -5,5 +5,20 @@
 !openspec/
 !openspec/**
 
+!transport/
+!transport/**/*.py
+!capture/
+!capture/**/*.py
+!client/
+!client/**/*.py
+!encoder/
+!encoder/**/*.py
+!recorder/
+!recorder/**/*.py
+!ui/
+!ui/**/*.py
+!utils/
+!utils/**/*.py
+
 # Ignore Windows Python launcher
 __launcher__.manifest
