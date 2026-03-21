@@ -26,9 +26,11 @@ class CaptureApp:
 
     def stop_recording(self):
         if self.is_recording:
-            saida = self.recorder.stop()
-            print(f'Vídeo salvo em: {saida}')
-            video_nome = os.path.basename(saida)
+            video_path, audio_path = self.recorder.stop()
+            
+            print(f'Vídeo salvo em: {video_path}')
+            print(f'audio salvo em: {audio_path}')
+            video_nome = os.path.basename(video_path)
             print(f"Para testar: python test/video_speed_test.py test/{video_nome}")
             self.is_recording = False
             self.start_btn.config(state=tk.NORMAL)

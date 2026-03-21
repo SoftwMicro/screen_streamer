@@ -20,23 +20,22 @@ def send_signal(rtmp_url):
     print("[INFO] Sinal inicial concluído.")
 
 def run_ffmpeg_rtmp(
-    input_file,
+    video_file,
+    audio_file,
     rtmp_url,
     bitrate='6800k',
-    preset='ultrafast',
+    preset='veryfast',
     start_time=None,
     duration=None
 ):
-    """Transmite o vídeo real com faixa de áudio silenciosa."""
+    """Transmite vídeo com áudio externo (arquivo separado)."""
     cmd = ['ffmpeg', '-re']
 
     if start_time is not None:
         cmd += ['-ss', str(start_time)]
 
-    cmd += ['-i', input_file]
-
-    # Áudio silencioso
-    cmd += ['-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100']
+    cmd += ['-i', video_file]   # vídeo
+    cmd += ['-i', audio_file]   # áudio
 
     if duration is not None:
         cmd += ['-t', str(duration)]
@@ -47,6 +46,8 @@ def run_ffmpeg_rtmp(
         '-c:v', 'libx264',
         '-preset', preset,
         '-b:v', bitrate,
+        '-maxrate', bitrate,
+        '-bufsize', str(int(int(bitrate.replace("k",""))*2)) + 'k',  # buffer = 2x bitrate
         '-c:a', 'aac',
         '-b:a', '128k',
         '-shortest',
@@ -54,7 +55,7 @@ def run_ffmpeg_rtmp(
         rtmp_url
     ]
 
-    print("[INFO] Iniciando transmissão do vídeo...")
+    print("[INFO] Iniciando transmissão do vídeo com áudio externo...")
     print(f"[DEBUG] Comando FFmpeg: {' '.join(cmd)}")
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     for line in proc.stdout:
@@ -69,20 +70,26 @@ def run_ffmpeg_rtmp(
     else:
         print(f"[WARN] Falha na transmissão. Código de saída: {proc.returncode}")
         return False
-
 def main():
-    parser = argparse.ArgumentParser(description='Transmite um arquivo de vídeo local para YouTube Live com faixa de áudio silenciosa.')
-    parser.add_argument('input_file', help='Arquivo de vídeo de entrada (.mp4, .webm, etc)')
-    parser.add_argument('--server', choices=['main', 'backup'], default='main', help='Servidor RTMP do YouTube: main (padrão) ou backup')
-    parser.add_argument('--key', help='Chave de stream do YouTube (pode ser definida via env YOUTUBE_STREAM_KEY)')
+    parser = argparse.ArgumentParser(
+        description='Transmite vídeo + áudio separados para YouTube Live via RTMP.'
+    )
+    parser.add_argument('video_file', help='Arquivo de vídeo de entrada (.mp4, .webm, etc)')
+    parser.add_argument('audio_file', help='Arquivo de áudio separado (.wav, .aac, etc)')
+    parser.add_argument('--server', choices=['main', 'backup'], default='main',
+                        help='Servidor RTMP do YouTube: main (padrão) ou backup')
+    parser.add_argument('--key', help='Chave de stream do YouTube (ou variável de ambiente YOUTUBE_STREAM_KEY)')
     parser.add_argument('--bitrate', default='6800k', help='Bitrate de vídeo (default: 6800k)')
     parser.add_argument('--preset', default='ultrafast', help='Preset do encoder (default: ultrafast)')
     parser.add_argument('--start', type=float, help='Segundo inicial do vídeo para transmissão (opcional)')
     parser.add_argument('--end', type=float, help='Segundo final do vídeo para transmissão (opcional)')
     args = parser.parse_args()
 
-    if not os.path.isfile(args.input_file):
-        print(f"[ERROR] Arquivo de entrada não encontrado: {args.input_file}")
+    if not os.path.isfile(args.video_file):
+        print(f"[ERROR] Arquivo de vídeo não encontrado: {args.video_file}")
+        sys.exit(1)
+    if not os.path.isfile(args.audio_file):
+        print(f"[ERROR] Arquivo de áudio não encontrado: {args.audio_file}")
         sys.exit(1)
 
     stream_key = args.key or os.environ.get('YOUTUBE_STREAM_KEY')
@@ -95,6 +102,7 @@ def main():
     else:
         rtmp_base = 'rtmp://b.rtmp.youtube.com/live2?backup=1'
     rtmp_url = rtmp_base.rstrip('/') + '/' + stream_key
+
     print(f"[DEBUG] Usando servidor: {rtmp_base}")
     print(f"[DEBUG] URL RTMP final: {rtmp_url}")
 
@@ -109,12 +117,13 @@ def main():
     send_signal(rtmp_url)
     time.sleep(15)
 
-    # 2. Transmitir vídeo real
+    # 2. Transmitir vídeo + áudio
     run_ffmpeg_rtmp(
-        args.input_file,
-        rtmp_url,
-        args.bitrate,
-        args.preset,
+        video_file=args.video_file,
+        audio_file=args.audio_file,
+        rtmp_url=rtmp_url,
+        bitrate=args.bitrate,
+        preset=args.preset,
         start_time=start_time,
         duration=duration
     )
