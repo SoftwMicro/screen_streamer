@@ -1,23 +1,7 @@
 import subprocess
 import argparse
-import time
 import sys
 import os
-
-def send_signal(rtmp_url):
-    """Envia um sinal inicial de 15 segundos (preto + silêncio) para o YouTube."""
-    cmd = [
-        'ffmpeg',
-        '-f', 'lavfi', '-i', 'color=c=black:s=1280x720:r=30',
-        '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
-        '-t', '15',
-        '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1000k',
-        '-c:a', 'aac', '-b:a', '128k',
-        '-f', 'flv', rtmp_url
-    ]
-    print("[INFO] Enviando sinal inicial de 15 segundos...")
-    subprocess.run(cmd)
-    print("[INFO] Sinal inicial concluído.")
 
 def run_ffmpeg_rtmp(
     video_file,
@@ -34,8 +18,11 @@ def run_ffmpeg_rtmp(
     if start_time is not None:
         cmd += ['-ss', str(start_time)]
 
-    cmd += ['-i', video_file]   # vídeo
-    cmd += ['-i', audio_file]   # áudio
+    # entrada de vídeo
+    cmd += ['-i', video_file]
+
+    # entrada de áudio real
+    cmd += ['-i', audio_file]
 
     if duration is not None:
         cmd += ['-t', str(duration)]
@@ -47,7 +34,7 @@ def run_ffmpeg_rtmp(
         '-preset', preset,
         '-b:v', bitrate,
         '-maxrate', bitrate,
-        '-bufsize', str(int(int(bitrate.replace("k",""))*2)) + 'k',  # buffer = 2x bitrate
+        '-bufsize', str(int(int(bitrate.replace("k",""))*2)) + 'k',
         '-c:a', 'aac',
         '-b:a', '128k',
         '-shortest',
@@ -70,6 +57,7 @@ def run_ffmpeg_rtmp(
     else:
         print(f"[WARN] Falha na transmissão. Código de saída: {proc.returncode}")
         return False
+
 def main():
     parser = argparse.ArgumentParser(
         description='Transmite vídeo + áudio separados para YouTube Live via RTMP.'
@@ -80,9 +68,10 @@ def main():
                         help='Servidor RTMP do YouTube: main (padrão) ou backup')
     parser.add_argument('--key', help='Chave de stream do YouTube (ou variável de ambiente YOUTUBE_STREAM_KEY)')
     parser.add_argument('--bitrate', default='6800k', help='Bitrate de vídeo (default: 6800k)')
-    parser.add_argument('--preset', default='ultrafast', help='Preset do encoder (default: ultrafast)')
+    parser.add_argument('--preset', default='veryfast', help='Preset do encoder (default: veryfast)')
     parser.add_argument('--start', type=float, help='Segundo inicial do vídeo para transmissão (opcional)')
     parser.add_argument('--end', type=float, help='Segundo final do vídeo para transmissão (opcional)')
+    parser.add_argument('--retries', type=int, default=2, help='Número de tentativas de retransmissão em caso de falha')
     args = parser.parse_args()
 
     if not os.path.isfile(args.video_file):
@@ -113,20 +102,24 @@ def main():
     elif args.end is not None:
         duration = args.end
 
-    # 1. Enviar sinal inicial
-    send_signal(rtmp_url)
-    time.sleep(15)
+    # Transmitir vídeo + áudio com retries
+    attempts = 0
+    success = False
+    while attempts <= args.retries and not success:
+        print(f"[INFO] Tentativa {attempts+1} de transmissão...")
+        success = run_ffmpeg_rtmp(
+            video_file=args.video_file,
+            audio_file=args.audio_file,
+            rtmp_url=rtmp_url,
+            bitrate=args.bitrate,
+            preset=args.preset,
+            start_time=start_time,
+            duration=duration
+        )
+        attempts += 1
 
-    # 2. Transmitir vídeo + áudio
-    run_ffmpeg_rtmp(
-        video_file=args.video_file,
-        audio_file=args.audio_file,
-        rtmp_url=rtmp_url,
-        bitrate=args.bitrate,
-        preset=args.preset,
-        start_time=start_time,
-        duration=duration
-    )
+    if not success:
+        print("[ERROR] Todas as tentativas de transmissão falharam.")
 
 if __name__ == '__main__':
     main()
