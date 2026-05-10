@@ -1,6 +1,15 @@
+
+import sys
+import os
+if getattr(sys, 'frozen', False):
+    # Executável PyInstaller
+    base_dir = os.path.dirname(sys.executable)
+else:
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(base_dir)
+
 import tkinter as tk
 from recorder.ffmpeg_recorder import FFmpegRecorder
-import os
 import time
 from recorder.mux_av import mux
 
