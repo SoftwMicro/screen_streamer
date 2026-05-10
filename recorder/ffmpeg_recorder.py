@@ -46,6 +46,7 @@ class FFmpegRecorder:
             '-f', 'dshow',
             '-rtbufsize', '100M',
             '-i', self.audio_device,
+            '-af', 'highpass=f=200',  # filtro simples para remover ruído grave
             '-c:a', 'pcm_s16le',  # WAV sem compressão
             '-ar', '44100',
             '-ac', '2',
