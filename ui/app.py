@@ -1,6 +1,8 @@
 import tkinter as tk
 from recorder.ffmpeg_recorder import FFmpegRecorder
 import os
+import time
+from recorder.mux_av import mux
 
 class CaptureApp:
     def __init__(self, root):
@@ -27,11 +29,23 @@ class CaptureApp:
     def stop_recording(self):
         if self.is_recording:
             video_path, audio_path = self.recorder.stop()
-            
-            print(f'Vídeo salvo em: {video_path}')
-            print(f'audio salvo em: {audio_path}')
-            video_nome = os.path.basename(video_path)
-            print(f"Para testar: python test/video_speed_test.py test/{video_nome}")
+
+            print(f"Vídeo salvo em: {video_path}")
+            print(f"Áudio salvo em: {audio_path}")
+
+            # Loop de verificação até que os arquivos existam e tenham tamanho > 0
+            for tentativa in range(30):  # tenta até 30 vezes (30s)
+                if os.path.exists(video_path) and os.path.getsize(video_path) > 0 \
+                   and os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+                    print("Arquivos válidos encontrados, chamando mux...")
+                    mux(video_path, audio_path, "saida.mp4")
+                    break
+                else:
+                    print("Arquivos ainda não prontos, aguardando...")
+                    time.sleep(1)
+            else:
+                print("Erro: arquivos não ficaram prontos dentro do tempo limite.")
+
             self.is_recording = False
             self.start_btn.config(state=tk.NORMAL)
             self.stop_btn.config(state=tk.DISABLED)
