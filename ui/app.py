@@ -1,6 +1,11 @@
-
 import sys
 import os
+import tkinter as tk
+from tkinter import filedialog, messagebox
+import time
+from recorder.ffmpeg_recorder import FFmpegRecorder
+from recorder.mux_av import mux
+
 if getattr(sys, 'frozen', False):
     # Executável PyInstaller
     base_dir = os.path.dirname(sys.executable)
@@ -8,23 +13,31 @@ else:
     base_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(base_dir)
 
-import tkinter as tk
-from recorder.ffmpeg_recorder import FFmpegRecorder
-import time
-from recorder.mux_av import mux
 
 class CaptureApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Gravação de Tela")
-        self.recorder = FFmpegRecorder()
+        self.output_dir = os.path.abspath(os.path.join(base_dir, '..', 'test'))
+        self.recorder = FFmpegRecorder(output_dir=self.output_dir)
         self.is_recording = False
 
         self.start_btn = tk.Button(root, text="Gravar", command=self.start_recording)
         self.start_btn.pack(pady=10)
+
         self.stop_btn = tk.Button(root, text="Parar", command=self.stop_recording)
         self.stop_btn.pack(pady=10)
         self.stop_btn.config(state=tk.DISABLED)
+
+        self.config_btn = tk.Button(root, text="Configuração", command=self.configurar_pasta)
+        self.config_btn.pack(pady=10)
+
+    def configurar_pasta(self):
+        pasta = filedialog.askdirectory(title="Selecione a pasta de saída")
+        if pasta:
+            self.output_dir = pasta
+            self.recorder.output_dir = pasta
+            messagebox.showinfo("Configuração", f"Pasta de saída definida:\n{self.output_dir}")
 
     def start_recording(self):
         if self.is_recording:
@@ -32,8 +45,7 @@ class CaptureApp:
         self.is_recording = True
         self.start_btn.config(state=tk.DISABLED)
         self.stop_btn.config(state=tk.NORMAL)
-        saida = self.recorder.start()
-        self.output_path = saida
+        self.recorder.start()
 
     def stop_recording(self):
         if self.is_recording:
@@ -47,7 +59,15 @@ class CaptureApp:
                 if os.path.exists(video_path) and os.path.getsize(video_path) > 0 \
                    and os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
                     print("Arquivos válidos encontrados, chamando mux...")
-                    mux(video_path, audio_path, "saida.mp4")
+                    mux(video_path, audio_path, os.path.join(self.output_dir, "saida_muxed.mp4"))
+
+                    # excluir originais
+                    try:
+                        os.remove(video_path)
+                        os.remove(audio_path)
+                        print("Arquivos originais removidos.")
+                    except Exception as e:
+                        print("Erro ao remover arquivos:", e)
                     break
                 else:
                     print("Arquivos ainda não prontos, aguardando...")
@@ -58,6 +78,7 @@ class CaptureApp:
             self.is_recording = False
             self.start_btn.config(state=tk.NORMAL)
             self.stop_btn.config(state=tk.DISABLED)
+
 
 if __name__ == "__main__":
     root = tk.Tk()
