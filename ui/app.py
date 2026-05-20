@@ -1,8 +1,15 @@
+
 import sys
 import os
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import time
+
+# Garante que o diretório raiz do projeto está no sys.path
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
+
 from recorder.ffmpeg_recorder import FFmpegRecorder
 from recorder.mux_av import mux
 
