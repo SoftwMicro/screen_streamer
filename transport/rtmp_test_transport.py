@@ -5,31 +5,25 @@ import os
 
 def run_ffmpeg_rtmp(
     video_file,
-    audio_file,
     rtmp_url,
     bitrate='6800k',
     preset='veryfast',
     start_time=None,
     duration=None
 ):
-    """Transmite vídeo com áudio externo (arquivo separado)."""
+    """Transmite vídeo já com áudio embutido (sem áudio separado)."""
     cmd = ['ffmpeg', '-re']
 
     if start_time is not None:
         cmd += ['-ss', str(start_time)]
 
-    # entrada de vídeo
+    # entrada de vídeo (com áudio embutido)
     cmd += ['-i', video_file]
-
-    # entrada de áudio real
-    cmd += ['-i', audio_file]
 
     if duration is not None:
         cmd += ['-t', str(duration)]
 
     cmd += [
-        '-map', '0:v:0',
-        '-map', '1:a:0',
         '-c:v', 'libx264',
         '-preset', preset,
         '-b:v', bitrate,
@@ -37,7 +31,6 @@ def run_ffmpeg_rtmp(
         '-bufsize', str(int(int(bitrate.replace("k",""))*2)) + 'k',
         '-c:a', 'aac',
         '-b:a', '128k',
-        '-shortest',
         '-f', 'flv',
         rtmp_url
     ]
@@ -60,10 +53,9 @@ def run_ffmpeg_rtmp(
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Transmite vídeo + áudio separados para YouTube Live via RTMP.'
+        description='Transmite vídeo (com áudio embutido) para YouTube Live via RTMP.'
     )
     parser.add_argument('video_file', help='Arquivo de vídeo de entrada (.mp4, .webm, etc)')
-    parser.add_argument('audio_file', help='Arquivo de áudio separado (.wav, .aac, etc)')
     parser.add_argument('--server', choices=['main', 'backup'], default='main',
                         help='Servidor RTMP do YouTube: main (padrão) ou backup')
     parser.add_argument('--key', help='Chave de stream do YouTube (ou variável de ambiente YOUTUBE_STREAM_KEY)')
@@ -72,13 +64,16 @@ def main():
     parser.add_argument('--start', type=float, help='Segundo inicial do vídeo para transmissão (opcional)')
     parser.add_argument('--end', type=float, help='Segundo final do vídeo para transmissão (opcional)')
     parser.add_argument('--retries', type=int, default=2, help='Número de tentativas de retransmissão em caso de falha')
+
+    # Simulação de parâmetros de entrada para execução direta
+    if len(sys.argv) == 1:
+        # Exemplo de simulação: python rtmp_test_transport.py video.mp4 --key SUA_CHAVE
+        sys.argv += ['video.mp4', '--key', 'SUA_CHAVE_DE_STREAM']
+
     args = parser.parse_args()
 
     if not os.path.isfile(args.video_file):
         print(f"[ERROR] Arquivo de vídeo não encontrado: {args.video_file}")
-        sys.exit(1)
-    if not os.path.isfile(args.audio_file):
-        print(f"[ERROR] Arquivo de áudio não encontrado: {args.audio_file}")
         sys.exit(1)
 
     stream_key = args.key or os.environ.get('YOUTUBE_STREAM_KEY')
@@ -102,14 +97,13 @@ def main():
     elif args.end is not None:
         duration = args.end
 
-    # Transmitir vídeo + áudio com retries
+    # Transmitir vídeo com retries
     attempts = 0
     success = False
     while attempts <= args.retries and not success:
         print(f"[INFO] Tentativa {attempts+1} de transmissão...")
         success = run_ffmpeg_rtmp(
             video_file=args.video_file,
-            audio_file=args.audio_file,
             rtmp_url=rtmp_url,
             bitrate=args.bitrate,
             preset=args.preset,
